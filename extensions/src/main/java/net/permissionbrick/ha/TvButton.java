@@ -54,6 +54,7 @@ public final class TvButton extends ImageButton {
         boolean show = fullscreen != null && fullscreen.isShown();
         setVisibility(show ? VISIBLE : INVISIBLE);
         if (show) setAlpha(fullscreen.getAlpha());
+        setEnabled(show && fullscreen.getAlpha() > 0.1f);
         return true;
     };
     @Override protected void onAttachedToWindow() {
