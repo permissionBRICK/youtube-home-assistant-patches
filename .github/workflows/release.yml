@@ -14,7 +14,10 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Install Android platform
-        run: sdkmanager 'platforms;android-36'
+        run: |
+          export ANDROID_HOME="$RUNNER_TEMP/android-sdk"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          bash scripts/setup.sh
       - name: Build patch and feed
         env:
           RELEASE_TAG: ${{ github.ref_name }}
