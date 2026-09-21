@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Player fingerprints adapted from ReVanced Patches v6.1.0 (GPL-3.0).
- * 2026-09-21: independent webhook extension and player button.
+ * 2026-09-21: independent webhook extension and device-picker entry.
  */
 package net.permissionbrick.ha
 
@@ -17,31 +17,47 @@ private const val BRIDGE = "Lnet/permissionbrick/ha/Playback;"
 
 private val controlsPatch = resourcePatch {
     apply {
-        document("res/layout/youtube_controls_bottom_ui_container.xml").use { doc ->
-            val root = doc.documentElement
-            check(root.tagName.endsWith("ConstraintLayout")) { "Unsupported YouTube player layout" }
-            check(doc.getElementsByTagName("net.permissionbrick.ha.TvButton").length == 0) {
-                "Home Assistant is already patched into this APK. Start from the original APK."
+        // Both device-picker entry points use a RecyclerView inside a scroll view.
+        // Keep the native list and its listeners intact; append our row in the same scroll area.
+        listOf("mdx_device_picker_main", "send_to_tv_device_picker").forEach { layout ->
+            document("res/layout/$layout.xml").use { doc ->
+                check(doc.getElementsByTagName("net.permissionbrick.ha.HomeAssistantEntry").length == 0) {
+                    "Home Assistant is already patched into this APK. Start from the original APK."
+                }
+                val list = doc.getElementsByTagName("android.support.v7.widget.RecyclerView").item(0) as? Element
+                    ?: error("YouTube device list not found: $layout")
+                check(list.getAttribute("android:id") == "@id/device_picker_recycler_view")
+                val scroll = list.parentNode as Element
+                check(scroll.tagName.endsWith("NestedScrollView")) { "Unexpected device picker container" }
+                val column = doc.createElement("LinearLayout")
+                column.setAttribute("android:orientation", "vertical")
+                column.setAttribute("android:layout_width", "match_parent")
+                column.setAttribute("android:layout_height", "wrap_content")
+                scroll.replaceChild(column, list)
+                column.appendChild(list)
+                document("res/layout/mdx_device_picker_link_with_tv_code.xml").use { template ->
+                    val row = doc.createElement("net.permissionbrick.ha.HomeAssistantEntry")
+                    val original = template.documentElement
+                    for (i in 0 until original.attributes.length) {
+                        val attr = original.attributes.item(i)
+                        row.setAttribute(attr.nodeName, attr.nodeValue)
+                    }
+                    row.setAttribute("android:contentDescription", "Home Assistant. Long press for settings")
+                    val icon = doc.importNode(original.getElementsByTagName("ImageView").item(0), true) as Element
+                    icon.removeAttribute("android:id")
+                    icon.setAttribute("android:src", "@drawable/yt_outline_tv_vd_theme_24")
+                    icon.setAttribute("android:importantForAccessibility", "no")
+                    row.appendChild(icon)
+                    val text = doc.createElement("TextView")
+                    mapOf("text" to "Home Assistant", "textAppearance" to "?ytTextAppearanceTitle2",
+                        "textColor" to "?ytTextPrimary", "gravity" to "center_vertical",
+                        "layout_width" to "match_parent", "layout_height" to "wrap_content",
+                        "minHeight" to "@dimen/devicepicker_route_container_min_height",
+                        "importantForAccessibility" to "no").forEach { (key, value) -> text.setAttribute("android:$key", value) }
+                    row.appendChild(text)
+                    column.appendChild(row)
+                }
             }
-            // Run before the regular player-controls patch opens this document.
-            // Anchor to bottom_end_container, which ReVanced moves with its button chain.
-            val children = (0 until root.childNodes.length).mapNotNull { root.childNodes.item(it) as? Element }
-            val anchor = children.firstOrNull {
-                it.getAttribute("android:id").substringAfter('/') == "bottom_end_container"
-            } ?: error("YouTube bottom player controls not found")
-            val chapter = children.firstOrNull {
-                it.getAttribute("android:id").substringAfter('/') == "time_bar_chapter_title_container"
-            } ?: error("YouTube chapter title container not found")
-            chapter.setAttribute("yt:layout_constraintRight_toLeftOf", "@id/ha_send_to_tv")
-            val button = doc.createElement("net.permissionbrick.ha.TvButton")
-            mapOf("id" to "@+id/ha_send_to_tv", "layout_width" to "48dp", "layout_height" to "48dp",
-                "contentDescription" to "Send to TV. Long press for Home Assistant settings",
-                "padding" to "12dp", "background" to "@android:color/transparent").forEach { (key, value) ->
-                button.setAttribute("android:$key", value)
-            }
-            button.setAttribute("yt:layout_constraintRight_toLeftOf", "@id/bottom_end_container")
-            button.setAttribute("yt:layout_constraintBottom_toTopOf", "@id/quick_actions_container")
-            root.insertBefore(button, anchor)
         }
         document("AndroidManifest.xml").use { doc ->
             val app = doc.getElementsByTagName("application").item(0) as Element
@@ -63,8 +79,8 @@ private val controlsPatch = resourcePatch {
 
 @Suppress("unused")
 val homeAssistantPatch = bytecodePatch(
-    name = "Add Home Assistant TV button",
-    description = "Adds a player button that pauses locally and sends the video and timestamp to your Home Assistant webhook. Long press to configure.",
+    name = "Add Home Assistant to device picker",
+    description = "Adds Home Assistant to Select a device. Sends the video and timestamp to your webhook; local pausing is best effort. Long press the entry to configure.",
 ) {
     compatibleWith("com.google.android.youtube"("20.40.45"))
     dependsOn(controlsPatch)

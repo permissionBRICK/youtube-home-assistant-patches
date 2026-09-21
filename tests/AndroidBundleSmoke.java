@@ -11,7 +11,7 @@ public final class AndroidBundleSmoke {
         Class<?> entry = patches.loadClass("net.permissionbrick.ha.HomeAssistantPatchKt");
         Object patch = entry.getMethod("getHomeAssistantPatch").invoke(null);
         Object name = patch.getClass().getMethod("getName").invoke(patch);
-        if (!"Add Home Assistant TV button".equals(name)) throw new AssertionError(name);
+        if (!"Add Home Assistant to device picker".equals(name)) throw new AssertionError(name);
         System.out.println("PASS: Android DEX bundle loads against ReVanced Manager 2.6.0: " + name);
     }
 }

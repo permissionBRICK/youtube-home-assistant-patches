@@ -1,6 +1,6 @@
-# YouTube Home Assistant button
+# YouTube Home Assistant handoff
 
-A custom ReVanced patch that adds a TV button in the bottom player controls. Tap it to pause YouTube on your phone and send the current video and playback position to a Home Assistant webhook. Your existing automation handles the receiver, TV inputs and SmartTube.
+A custom ReVanced patch that adds **Home Assistant** to YouTube's **Select a device** sheet, alongside the TV devices and "Link with TV code". Tap it to send the current video and playback position to a Home Assistant webhook. The patch also tries to pause YouTube locally; a failed pause never blocks sending. Your existing automation handles the receiver, TV inputs and SmartTube.
 
 For **ReVanced Manager 2.6.0** and **YouTube 20.40.45**. The repository distributes a patch, not a YouTube APK.
 
@@ -13,9 +13,9 @@ For **ReVanced Manager 2.6.0** and **YouTube 20.40.45**. The repository distribu
    https://github.com/permissionBRICK/youtube-home-assistant-patches/releases/latest/download/patches.json
    ```
 
-3. Patch the original YouTube **20.40.45 APK** with your usual patches and **Add Home Assistant TV button** from this source. Install the result through Manager, using the same Manager signing key as your existing installation.
-4. Open a video and tap the TV button in the player controls. Paste the **complete webhook URL from your existing browser userscript**, then save. There is no separate Home Assistant API token or entity setting.
-5. Tap the TV button again to send. **Long press** it to open Home Assistant settings later.
+3. Patch the original YouTube **20.40.45 APK** with your usual patches and **Add Home Assistant to device picker** from this source. Install the result through Manager, using the same Manager signing key as your existing installation.
+4. Open a video, open **Select a device** using YouTube's existing Cast/TV control, and tap **Home Assistant**. Paste the **complete webhook URL from your existing browser userscript**, then save. There is no separate Home Assistant API token or entity setting.
+5. Tap **Home Assistant** again to send. **Long press** the entry to open its settings later.
 
 The URL above is a JSON feed in [Manager's documented format](https://github.com/ReVanced/revanced-manager/blob/main/docs/2_3_managing_patches.md), not the repository URL. A local `.rvp` download is also available in Releases.
 
@@ -35,11 +35,13 @@ The payload matches the browser userscript's fields. `title` is empty because th
 
 Configure the existing Home Assistant webhook trigger to accept POST JSON. An HTTPS or local HTTP URL can include a reverse-proxy prefix, followed by `/api/webhook/<id>`. The phone must be able to reach that URL. No automation changes are needed if the browser script already works.
 
-The phone pauses before sending and stays paused if the request fails. A success message means Home Assistant accepted the HTTP request; it does not confirm playback on the TV. A timeout may occur after the automation started, so the patch does not retry automatically. Redirects are rejected; use the final webhook URL.
+Local pausing is best effort. If the pause control is missing or fails, the request still goes out. Successful requests show a short "Sent to Home Assistant" toast. A success message means Home Assistant accepted the HTTP request; it does not confirm playback on the TV. A timeout may occur after the automation started, so the patch does not retry automatically. Redirects are rejected; use the final webhook URL.
 
 The webhook URL is stored encrypted with Android Keystore in the app's private, excluded-from-backup storage. It is not written to logs or built into the patch. Use HTTPS when connecting over an untrusted network. The patch permits HTTP in the app's network configuration for local Home Assistant instances; certificate verification remains enabled for HTTPS.
 
-The button is for the regular video player, including fullscreen. Shorts and background playback do not have this button. The patch checks the APK's player methods and layout and fails if they do not match.
+The entry uses the regular video player's current video and timestamp. Open a video before sending; Shorts and background playback are not supported. The patch checks the APK's player methods and device-picker layouts and fails if they do not match. It adds no separate player icon.
+
+When upgrading from v0.1.1, refresh this source in Manager, select the renamed patch, and repatch the original YouTube APK. Refreshing the feed alone does not change the installed YouTube app. The saved webhook URL is retained when updating the app with the same signing key and package name.
 
 ## Build
 
@@ -56,6 +58,8 @@ Run the network and playback-state checks locally:
 ```sh
 scripts/test.sh
 ```
+
+With an Android emulator/device connected, run `scripts/test-android.sh` after building to verify the actual POST path despite missing or throwing pause controls, duplicate suppression, pausing from a device-sheet context, and encrypted settings. Set `ANDROID_SERIAL` if several devices are connected.
 
 Tagged releases build the `.rvp` and publish the Manager JSON feed through GitHub Actions. The workflow only builds and publishes artifacts.
 
