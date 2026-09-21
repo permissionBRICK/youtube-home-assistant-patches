@@ -1,0 +1,30 @@
+name: Build and release patch
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-36'
+      - name: Build patch and feed
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 -c 'import os,pathlib; p=pathlib.Path("gradle.properties"); p.write_text("\n".join("version="+os.environ["RELEASE_TAG"][1:] if line.startswith("version=") else line for line in p.read_text().splitlines())+"\n")'
+          python3 scripts/build.py
+          python3 scripts/release-feed.py "$RELEASE_TAG"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" build/libs/youtube-home-assistant.rvp build/libs/patches.json --title "$RELEASE_TAG" --notes 'Home Assistant webhook handoff for YouTube 20.40.45. See the README for installation and setup.'

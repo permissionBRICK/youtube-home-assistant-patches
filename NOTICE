@@ -1,0 +1,18 @@
+YouTube Home Assistant patches
+Copyright (C) 2026 permissionBRICK
+SPDX-License-Identifier: GPL-3.0-only
+
+The player fingerprints in HomeAssistantPatch.kt are adapted from ReVanced
+Patches v6.1.0, copyright ReVanced contributors, licensed under GPL-3.0.
+https://gitlab.com/ReVanced/revanced-patches/-/tree/v6.1.0
+Changes dated 2026-09-21: extracted foreground video ID and progress hooks,
+added a separate extension and resource patch for Home Assistant handoff.
+
+Gradle wrapper files originated in the ReVanced patches template.
+https://github.com/ReVanced/revanced-patches-template
+The Gradle wrapper is copyright the Gradle authors and licensed under Apache-2.0.
+https://www.apache.org/licenses/LICENSE-2.0
+
+ReVanced CLI and Google R8 are downloaded as build dependencies and are not
+included in the distributed patch. YouTube is a trademark of Google LLC.
+This project is not affiliated with Google, ReVanced, or Home Assistant.
